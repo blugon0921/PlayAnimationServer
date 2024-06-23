@@ -1,4 +1,4 @@
-package kr.blugon.playanimationserver.commands
+package kr.blugon.playanimationserver.commands.play
 
 import kr.blugon.minestom_brigadier.BrigadierCommand
 import kr.blugon.minestom_brigadier.getValue

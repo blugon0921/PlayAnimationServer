@@ -1,12 +1,12 @@
 package kr.blugon.playanimationserver.play
 
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
+import kotlinx.coroutines.*
 import kr.blugon.playanimationserver.Bukkit
 import kr.blugon.playanimationserver.broadcast
+import kr.blugon.playanimationserver.tickRate
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.sound.Sound
+import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.Component.text
 import net.kyori.adventure.text.format.TextColor
 import net.minestom.server.MinecraftServer
@@ -24,8 +24,10 @@ import java.awt.image.BufferedImage
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.Executors
 import javax.imageio.ImageIO
 import kotlin.collections.ArrayList
+import kotlin.concurrent.thread
 
 const val videoPath = "./animations"
 var playTask: Task? = null
@@ -34,19 +36,17 @@ var scale = 2.5
 class Animation(val name: String, val instanceContainer: InstanceContainer) {
 //    val floorPos = Pos(4.0268, 2.875, -14.0)
     val floorPos = Pos(0.5, 2.875, 0.99, 180f, 0f)
-    val fps = 60
 
     suspend fun play() {
-        val readTask = GlobalScope.async {
-            val frames = ArrayList<BufferedImage>()
-            broadcast("이미지 읽기 시작")
-            for (i in 0 until File("${videoPath}/${name}").listFiles()!!.size) {
-                frames.add(ImageIO.read((File("${videoPath}/${name}/frame${i}.png"))))
+        broadcast("이미지 읽기 시작")
+        val frames = GlobalScope.async(Dispatchers.IO) {
+            ArrayList<BufferedImage>().apply {
+                for (i in 0 until File("${videoPath}/${name}").listFiles()!!.size) {
+                    this.add(ImageIO.read((File("${videoPath}/${name}/frame${i}.png"))))
+                }
             }
-            broadcast("이미지 읽기 완료")
-            return@async frames
-        }
-        val frames = readTask.await()
+        }.await()
+        broadcast("이미지 읽기 완료")
 
         val ratio = 5.0
 
@@ -72,42 +72,43 @@ class Animation(val name: String, val instanceContainer: InstanceContainer) {
 
         var frameNumber = 0
 
-        Bukkit.getOnlinePlayers().forEach { player->
-            player.playSound(Sound.sound(Key.key("minecraft", "pv.${name.lowercase()}"), Sound.Source.MASTER, 1f, 1f))
-        }
         val schedule = MinecraftServer.getSchedulerManager()
         var before = SimpleDateFormat("ss").format(Date())
         var count = 0
-        playTask = schedule.buildTask {
-            if (frameNumber != frames.size - 1) {
-                val frame = frames[frameNumber]
 
-                for (y in 0 until videoSize.height) {
-                    val text = text()
-                    for (x in 0 until videoSize.width) {
-                        val pixelColor = Color(frame.getRGB(x, y))
-                        val pixelTextColor = TextColor.color(pixelColor.red, pixelColor.green, pixelColor.blue)
-//                              text.append(text("■").color(pixelTextColor))
-                        text.append(text("√").color(pixelTextColor))
+        broadcast("재생 시작")
+
+        Bukkit.getOnlinePlayers().forEach { player->
+            player.playSound(Sound.sound(Key.key("minecraft", "pv.${name.lowercase().split(".")[0]}"), Sound.Source.MASTER, 1f, 1f))
+        }
+        playTask = schedule.buildTask {
+            thread {
+                if (frameNumber != frames.size - 1) {
+                    val frame = frames[frameNumber]
+
+                    for (y in 0 until videoSize.height) {
+                        val text = text()
+                        for (x in 0 until videoSize.width) {
+                            val pixelColor = Color(frame.getRGB(x, y))
+                            val pixelTextColor = TextColor.color(pixelColor.red, pixelColor.green, pixelColor.blue)
+                            text.append(text("√").color(pixelTextColor))
+                        }
+                        textDisplays[y].editEntityMeta(TextDisplayMeta::class.java) {
+                            it.text = text.build()
+                        }
                     }
-                    textDisplays[y].editEntityMeta(TextDisplayMeta::class.java) {
-                        it.text = text.build()
+                    frameNumber++
+                    val now = SimpleDateFormat("ss").format(Date())
+                    if(now != before) {
+                        if(count >= tickRate*0.5) frameNumber+=(tickRate-count)
+                        count = 0
+                        before = now
                     }
+                    count++
+                } else {
+                    playTask!!.cancel()
+                    playTask = null
                 }
-                frameNumber++
-                val now = SimpleDateFormat("ss").format(Date())
-                if(now != before) {
-//                    for (player in Bukkit.getOnlinePlayers()) {
-//                        player.sendActionBar(text("TPS(FPS): $count"))
-//                    }
-                    if(count >= 30) frameNumber+=((60-count)*(60/fps))
-                    count = 0
-                    before = now
-                }
-                count++
-            } else {
-                playTask!!.cancel()
-                playTask = null
             }
         }.repeat(TaskSchedule.millis(1)).schedule()
     }

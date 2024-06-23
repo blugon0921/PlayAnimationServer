@@ -1,11 +1,14 @@
 package kr.blugon.playanimationserver
 
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import kr.blugon.minestom_brigadier.registerCommandHandler
 import kr.blugon.playanimationserver.commands.basic.gamemodeCommand
 import kr.blugon.playanimationserver.commands.basic.stopCommand
-import kr.blugon.playanimationserver.commands.playAnimationCommand
-import kr.blugon.playanimationserver.commands.sizeCommand
-import kr.blugon.playanimationserver.commands.stopAnimationCommand
+import kr.blugon.playanimationserver.commands.play.playAnimationCommand
+import kr.blugon.playanimationserver.commands.play.sizeCommand
+import kr.blugon.playanimationserver.commands.play.stopAnimationCommand
+import kr.blugon.playanimationserver.commands.status.tpsCommand
 import kr.blugon.playanimationserver.events.PlayerJoin
 import kr.blugon.playanimationserver.events.ServerList
 import kr.blugon.playanimationserver.events.registerEventHandler
@@ -17,9 +20,30 @@ import net.kyori.adventure.text.format.TextColor
 import net.minestom.server.MinecraftServer
 import net.minestom.server.coordinate.Pos
 import net.minestom.server.entity.Player
+import net.minestom.server.timer.TaskSchedule
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.concurrent.thread
+import kotlin.system.exitProcess
 
+var showTpsActionbar = false
+var tps = 0
 val worldSpawnPoint = Pos(.5, .0, .5)
-fun main() {
+var tickRate: Int = 0
+fun main(args: Array<String>) {
+    var inputTickRate = 20
+    if(args.isNotEmpty()) {
+        try {
+            inputTickRate = args[0].toInt()
+        } catch (e: NumberFormatException) {
+            println("Invalid arguments.")
+            exitProcess(1)
+        }
+    }
+    tickRate = inputTickRate
+    println("TickRate: $tickRate")
+    MinecraftServer.setCompressionThreshold(0)
+    MinecraftServer.setTickrate(inputTickRate)
     val minecraftServer = MinecraftServer.init()
     MinecraftServer.setBrandName("PlayAnimation")
 
@@ -47,9 +71,45 @@ fun main() {
 
         gamemodeCommand()
         stopCommand()
+        tpsCommand()
     }
 
+    val schedule = MinecraftServer.getSchedulerManager()
+    var before = SimpleDateFormat("ss").format(Date())
+    var count = 0
+    schedule.buildTask {
+        val now = SimpleDateFormat("ss").format(Date())
+        if(now != before) {
+            if(showTpsActionbar) {
+                for (player in Bukkit.getOnlinePlayers()) {
+                    player.sendActionBar(text("TPS: $count"))
+                }
+            }
+            tps = count
+            count = 0
+            before = now
+        }
+        count++
+    }.repeat(TaskSchedule.millis(1)).schedule()
+
     minecraftServer.start("127.0.0.1", 25565)
+    GlobalScope.launch {
+        while (true) {
+            val scanner = Scanner(System.`in`)
+            val input = scanner.next()
+            if(input == "stop") {
+                Bukkit.getOnlinePlayers().forEach { player->
+                    player.kick("Server closed")
+                }
+                MinecraftServer.stopCleanly()
+                exitProcess(0)
+            } else if(input == "tps") {
+                println("TPS: $tps")
+            } else {
+                println("unknown command")
+            }
+        }
+    }
 }
 
 fun broadcast(text: String) = broadcast(text(text))

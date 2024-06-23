@@ -1,13 +1,6 @@
-package kr.blugon.playanimationserver.commands
+package kr.blugon.playanimationserver.commands.play
 
 import kr.blugon.minestom_brigadier.BrigadierCommand
-import kr.blugon.minestom_brigadier.getValue
-import kr.blugon.playanimationserver.play.playTask
-import kr.blugon.playanimationserver.play.scale
-import net.kyori.adventure.sound.Sound
-import net.kyori.adventure.sound.SoundStop
-import net.minestom.server.command.builder.arguments.ArgumentType
-import net.minestom.server.entity.GameMode
 import net.minestom.server.entity.Player
 import net.minestom.server.entity.metadata.display.TextDisplayMeta
 import net.minestom.server.instance.InstanceContainer
