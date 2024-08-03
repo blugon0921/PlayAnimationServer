@@ -28,10 +28,12 @@ import java.util.concurrent.Executors
 import javax.imageio.ImageIO
 import kotlin.collections.ArrayList
 import kotlin.concurrent.thread
+import kotlin.time.Duration
 
 const val videoPath = "./animations"
 var playTask: Task? = null
 var scale = 2.5
+var startDelay = 0L
 @OptIn(DelicateCoroutinesApi::class)
 class Animation(val name: String, val instanceContainer: InstanceContainer) {
 //    val floorPos = Pos(4.0268, 2.875, -14.0)
@@ -76,40 +78,41 @@ class Animation(val name: String, val instanceContainer: InstanceContainer) {
         var before = SimpleDateFormat("ss").format(Date())
         var count = 0
 
-        broadcast("재생 시작")
-
         Bukkit.getOnlinePlayers().forEach { player->
-            player.playSound(Sound.sound(Key.key("minecraft", "pv.${name.lowercase().split(".")[0]}"), Sound.Source.MASTER, 1f, 1f))
+            player.playSound(Sound.sound(Key.key("minecraft", "pv.${name.lowercase().split(".")[0]}"), Sound.Source.MASTER, 0.5f, 1f))
         }
-        playTask = schedule.buildTask {
-            thread {
-                if (frameNumber != frames.size - 1) {
-                    val frame = frames[frameNumber]
+        schedule.buildTask {
+            broadcast("재생 시작")
+            playTask = schedule.buildTask {
+                thread {
+                    if (frameNumber != frames.size - 1) {
+                        val frame = frames[frameNumber]
 
-                    for (y in 0 until videoSize.height) {
-                        val text = text()
-                        for (x in 0 until videoSize.width) {
-                            val pixelColor = Color(frame.getRGB(x, y))
-                            val pixelTextColor = TextColor.color(pixelColor.red, pixelColor.green, pixelColor.blue)
-                            text.append(text("√").color(pixelTextColor))
+                        for (y in 0 until videoSize.height) {
+                            val text = text()
+                            for (x in 0 until videoSize.width) {
+                                val pixelColor = Color(frame.getRGB(x, y))
+                                val pixelTextColor = TextColor.color(pixelColor.red, pixelColor.green, pixelColor.blue)
+                                text.append(text("√").color(pixelTextColor))
+                            }
+                            textDisplays[y].editEntityMeta(TextDisplayMeta::class.java) {
+                                it.text = text.build()
+                            }
                         }
-                        textDisplays[y].editEntityMeta(TextDisplayMeta::class.java) {
-                            it.text = text.build()
+                        frameNumber++
+                        val now = SimpleDateFormat("ss").format(Date())
+                        if(now != before) {
+                            if(count >= tickRate*0.5) frameNumber+=(tickRate-count)
+                            count = 0
+                            before = now
                         }
+                        count++
+                    } else {
+                        playTask!!.cancel()
+                        playTask = null
                     }
-                    frameNumber++
-                    val now = SimpleDateFormat("ss").format(Date())
-                    if(now != before) {
-                        if(count >= tickRate*0.5) frameNumber+=(tickRate-count)
-                        count = 0
-                        before = now
-                    }
-                    count++
-                } else {
-                    playTask!!.cancel()
-                    playTask = null
                 }
-            }
-        }.repeat(TaskSchedule.millis(1)).schedule()
+            }.repeat(TaskSchedule.millis(1)).schedule()
+        }.delay(TaskSchedule.millis(startDelay)).schedule()
     }
 }

@@ -39,8 +39,8 @@ fun BrigadierCommand.playAnimationCommand(instanceContainer: InstanceContainer) 
                 val animation = Animation(name, instanceContainer)
                 (sender as Player).gameMode = GameMode.SPECTATOR
                 val height = ImageIO.read(images[0]).height
-                val yRatio = height*(7.0/60.0)
-                val zRatio = height*(-7.6/60.0)
+                val yRatio = height*(6.0/60.0)
+                val zRatio = height*(-6/60.0)
                 sender.teleport(Pos(0.5, scale*yRatio, scale*zRatio, 0f, 0f))
                 GlobalScope.launch {
                     animation.play()

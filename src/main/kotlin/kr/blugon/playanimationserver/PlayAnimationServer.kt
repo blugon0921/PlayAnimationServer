@@ -7,6 +7,7 @@ import kr.blugon.playanimationserver.commands.basic.gamemodeCommand
 import kr.blugon.playanimationserver.commands.basic.stopCommand
 import kr.blugon.playanimationserver.commands.play.playAnimationCommand
 import kr.blugon.playanimationserver.commands.play.sizeCommand
+import kr.blugon.playanimationserver.commands.play.startDelayCommand
 import kr.blugon.playanimationserver.commands.play.stopAnimationCommand
 import kr.blugon.playanimationserver.commands.status.tpsCommand
 import kr.blugon.playanimationserver.events.PlayerJoin
@@ -68,6 +69,7 @@ fun main(args: Array<String>) {
         playAnimationCommand(instance)
         stopAnimationCommand(instance)
         sizeCommand()
+        startDelayCommand()
 
         gamemodeCommand()
         stopCommand()
