@@ -30,12 +30,8 @@ import kotlin.collections.ArrayList
 import kotlin.concurrent.thread
 import kotlin.time.Duration
 
-const val videoPath = "./animations"
-var playTask: Task? = null
-var scale = 2.5
-var startDelay = 0L
 @OptIn(DelicateCoroutinesApi::class)
-class Animation(val name: String, val instanceContainer: InstanceContainer) {
+class FullPixelAnimation(val name: String, val instanceContainer: InstanceContainer) {
 //    val floorPos = Pos(4.0268, 2.875, -14.0)
     val floorPos = Pos(0.5, 2.875, 0.99, 180f, 0f)
 
@@ -50,27 +46,15 @@ class Animation(val name: String, val instanceContainer: InstanceContainer) {
         }.await()
         broadcast("이미지 읽기 완료")
 
-        val ratio = 5.0
-
-        val heightMove = scale/ratio
         val videoSize = Dimension(frames[0].width, frames[0].height)
-        val textDisplays = ArrayList<Entity>()
 
-        for (y in (videoSize.height - 1) downTo 0) {
-            Entity(EntityType.TEXT_DISPLAY).apply {
-                val pos = floorPos.add(.0, heightMove*y, .0)
-                this.setInstance(instanceContainer, pos)
-                this.teleport(pos)
-                this.setNoGravity(true)
-                this.editEntityMeta(TextDisplayMeta::class.java) {
-                    it.lineWidth = Int.MAX_VALUE
-                    it.backgroundColor = 0
-                    it.isUseDefaultBackground = false
-                    it.scale = Vec(scale, scale, 1.0)
-                }
-                textDisplays.add(this)
-            }
-        }
+        val displays = (
+                spawnDisplay(instanceContainer, floorPos, .0, 20.0) to
+                spawnDisplay(instanceContainer, floorPos, .01, 20.0)
+            ) to (
+                spawnDisplay(instanceContainer, floorPos, .0, 20.0-0.0625) to
+                spawnDisplay(instanceContainer, floorPos, .01, 20.0-0.0625)
+            )
 
         var frameNumber = 0
 
@@ -88,15 +72,32 @@ class Animation(val name: String, val instanceContainer: InstanceContainer) {
                     if (frameNumber != frames.size - 1) {
                         val frame = frames[frameNumber]
 
-                        for (y in 0 until videoSize.height) {
-                            val text = text()
+                        val text = text()
+                        val text2 = text()
+                        for (y in 0 until videoSize.height step 2) {
                             for (x in 0 until videoSize.width) {
                                 val pixelColor = Color(frame.getRGB(x, y))
                                 val pixelTextColor = TextColor.color(pixelColor.red, pixelColor.green, pixelColor.blue)
-                                text.append(text("√").color(pixelTextColor))
+                                text.append(text("■").color(pixelTextColor))
                             }
-                            textDisplays[y].editEntityMeta(TextDisplayMeta::class.java) {
+                            text.append(text("\n"))
+                        }
+                        for (y in 1 until videoSize.height step 2) {
+                            for (x in 0 until videoSize.width) {
+                                val pixelColor = Color(frame.getRGB(x, y))
+                                val pixelTextColor = TextColor.color(pixelColor.red, pixelColor.green, pixelColor.blue)
+                                text2.append(text("■").color(pixelTextColor))
+                            }
+                            text2.append(text("\n"))
+                        }
+                        displays.first.forEach { display ->
+                            display.editEntityMeta(TextDisplayMeta::class.java) {
                                 it.text = text.build()
+                            }
+                        }
+                        displays.second.forEach { display ->
+                            display.editEntityMeta(TextDisplayMeta::class.java) {
+                                it.text = text2.build()
                             }
                         }
                         frameNumber++
@@ -115,4 +116,24 @@ class Animation(val name: String, val instanceContainer: InstanceContainer) {
             }.repeat(TaskSchedule.millis(1)).schedule()
         }.delay(TaskSchedule.millis(startDelay)).schedule()
     }
+}
+
+fun spawnDisplay(instanceContainer: InstanceContainer, floorPos: Pos, addX: Double, addY: Double): Entity {
+    return Entity(EntityType.TEXT_DISPLAY).apply {
+        val pos = floorPos.add(addX, addY, .0)
+        this.setInstance(instanceContainer, pos)
+        this.teleport(pos)
+        this.setNoGravity(true)
+        this.editEntityMeta(TextDisplayMeta::class.java) {
+            it.lineWidth = Int.MAX_VALUE
+            it.backgroundColor = 0
+            it.isUseDefaultBackground = false
+            it.scale = Vec(0.4, 0.5, 1.0)
+        }
+    }
+}
+
+inline fun <T> Pair<T, T>.forEach(action: (T) -> Unit) {
+    action(this.first)
+    action(this.second)
 }

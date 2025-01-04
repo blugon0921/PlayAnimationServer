@@ -17,13 +17,14 @@ val kotlinVersion = kotlin.coreLibrariesVersion
 repositories {
     mavenCentral()
     maven("https://repo.blugon.kr/repository/maven-public/")
+    maven("https://jitpack.io")
 }
 
 dependencies {
     implementation(kotlin("stdlib"))
     implementation(kotlin("reflect"))
     implementation(files("minestom-dev.jar")) //Tickrate 60 minestom
-//    implementation("net.minestom:minestom-snapshots:277dceacf1")
+//    implementation("net.minestom:minestom-snapshots:07bd1c12b6")
 //    implementation("com.github.Project-Cepi:KStom:Tag")
     implementation("kr.blugon:node-fs:latest.release")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0-RC")
